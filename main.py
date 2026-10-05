@@ -1,15 +1,18 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
 #database
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///games.db"
-
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///games.db" #games db
+app.secret_key = "idk"
 db = SQLAlchemy(app)
 
 class Game(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=True) #link user to game
     name = db.Column(db.String(50), nullable=False)
     genres = db.Column(db.JSON, nullable=False)
     hours = db.Column(db.Integer, nullable=False)
@@ -30,6 +33,17 @@ class Game(db.Model):
             "review": self.review
         }
 
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), nullable=False)
+    password_hash = db.Column(db.String(150), nullable=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
 with app.app_context():
     db.create_all()
 
@@ -37,24 +51,69 @@ with app.app_context():
 #routes
 @app.route("/")
 def root():
-    return jsonify({"message":"Is this message good? No!"})
+    if not loggedIn():
+        return jsonify({"message":"Not logged in"})
+    return jsonify({"message": f"Welcome, {session['username']}!"})
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    username = data["username"]
+    password = data["password"]
+    user = User.query.filter_by(username=username).first()
+    if user and user.check_password(password):
+        session["user_id"] = user.id
+        session["username"] = user.username
+        return jsonify({"message": "Successfully logged in"})
+    return jsonify({"error": "Invalid login"})
+
+def loggedIn():
+    return "user_id" in session
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    if not loggedIn():
+        return {"error": "No login cookie"}
+    session.clear()
+    return jsonify({"message": "Successfully logged out"})
+
+@app.route("/create-account", methods=["POST"])
+def create_account():
+    data = request.get_json()
+    username = data["username"]
+    password = data["password"]
+    if User.query.filter_by(username=username).first(): #check for existing users with same name
+        return jsonify({"error": "Username already exists"})
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({"message": "Account created"})
+
 
 @app.route("/games",methods=["GET"])
 def get_games():
-    games = Game.query.all()
+    if not loggedIn():
+        return jsonify({"message":"Not logged in"})
+    games = Game.query.filter_by(user_id=session["user_id"]).all()
     return jsonify([game.to_dict() for game in games]), 200
 
 @app.route("/games/<int:game_id>", methods=["GET"])
 def get_game(game_id):
-    game = Game.query.get(game_id)
+    if not loggedIn():
+        return jsonify({"message":"Not logged in"})
+    game = Game.query.filter_by(id=game_id, user_id=session["user_id"]).first()
     if game:
         return jsonify(game.to_dict()), 200
     return jsonify({"error": "Game not found"}), 404
 
 @app.route("/create-game", methods=["POST"])
 def create_game():
+    if not loggedIn():
+        return jsonify({"message":"Not logged in"})
     data = request.get_json()
-    new_game = Game(name=data["name"],
+    new_game = Game(user_id=session["user_id"],
+                    name=data["name"],
                     genres=data["genres"],
                     completed=data["completed"],
                     full_completion=data["full_completion"],
@@ -67,7 +126,9 @@ def create_game():
 
 @app.route("/update-game/<int:game_id>", methods=["PUT"])
 def update_game(game_id):
-    game = Game.query.get(game_id)
+    if not loggedIn():
+        return jsonify({"message":"Not logged in"})
+    game = Game.query.filter_by(id=game_id, user_id=session["user_id"]).first()
     if game:
         data = request.get_json()
         game.name = data["name"]
@@ -83,7 +144,9 @@ def update_game(game_id):
 
 @app.route("/delete/<int:game_id>", methods=["DELETE"])
 def delete_game(game_id):
-    game = Game.query.get(game_id)
+    if not loggedIn():
+        return jsonify({"message":"Not logged in"})
+    game = Game.query.filter_by(id=game_id, user_id=session["user_id"]).first()
     if game:
         db.session.delete(game)
         db.session.commit()
