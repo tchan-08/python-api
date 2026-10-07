@@ -46,6 +46,12 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "username": self.username
+        }
+
 with app.app_context():
     db.create_all()
 
@@ -56,6 +62,16 @@ def root():
     if not loggedIn():
         return jsonify({"message":"Not logged in"}), 401
     return jsonify({"message": f"Welcome, {session['username']}!"}), 200
+
+@app.route("/get_user_info/<int:user_id>", methods=["GET"])
+def get_user_info(user_id):
+    if not loggedIn():
+        return jsonify({"error": "Not logged in"}), 401
+    user = User.query.filter_by(id=user_id).first()
+    if user:
+        return jsonify(user.to_dict()), 200
+
+    return jsonify({"error": "User not found"}), 404
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -126,10 +142,10 @@ def create_game():
     db.session.commit()
     return jsonify(new_game.to_dict()), 201
 
-@app.route("/update-game/<int:game_id>", methods=["PUT"])
+@app.route("/games/<int:game_id>/update", methods=["PUT"])
 def update_game(game_id):
     if not loggedIn():
-        return jsonify({"message":"Not logged in"})
+        return jsonify({"message":"Not logged in"}), 401
     game = Game.query.filter_by(id=game_id, user_id=session["user_id"]).first()
     if game:
         data = request.get_json()
@@ -144,10 +160,10 @@ def update_game(game_id):
         return jsonify(game.to_dict()), 200
     return jsonify({"error": "Game not found"}), 404
 
-@app.route("/delete/<int:game_id>", methods=["DELETE"])
+@app.route("/games/<int:game_id>/delete", methods=["DELETE"])
 def delete_game(game_id):
     if not loggedIn():
-        return jsonify({"message":"Not logged in"})
+        return jsonify({"message":"Not logged in"}), 401
     game = Game.query.filter_by(id=game_id, user_id=session["user_id"]).first()
     if game:
         db.session.delete(game)
