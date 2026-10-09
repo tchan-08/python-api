@@ -1,11 +1,6 @@
 import requests
 import json
 import os
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QPushButton, QLabel, QStackedWidget
-)
-
 class ApiClient:
     def __init__(self):
         self.base_url = "http://127.0.0.1:5000"
@@ -134,30 +129,3 @@ class ApiClient:
             f"{self.base_url}/games/{game_id}"
         )
         return response
-
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.client = ApiClient()
-        self.window_stack = QStackedWidget()
-        self.login_page = QWidget()
-        login_layout = QVBoxLayout(self.login_page)
-        login_layout.addWidget(QLabel("Login Page"))
-
-        self.home_page = QWidget()
-        home_layout = QVBoxLayout(self.home_page)
-        home_layout.addWidget(QLabel("Main Page"))
-
-        self.window_stack.addWidget(self.login_page)
-        self.window_stack.addWidget(self.home_page)
-
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.window_stack)
-
-        if self.check_login_status():
-            self.window_stack.setCurrentWidget(self.home_page)
-        else:
-            self.window_stack.setCurrentWidget(self.login_page)
-
-    def check_login_status(self):
-        return self.client._is_logged_in()
