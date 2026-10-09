@@ -1,6 +1,6 @@
 # Simple Python API
 
-I built this game website where users can:
+I built this API where users can:
 
 * Create accounts
 * Log in and log out
