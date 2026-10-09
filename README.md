@@ -21,8 +21,6 @@ Each game review stores:
 
 The back-end architecture of the application is handled by **Flask**.
 
-The front end of the application will be handled by **PyQt6** *(WIP)*.
-
 Data is stored in a relational database using **SQLAlchemy**.
 
 There are two tables: **User** and **Game**. These tables have a **1:M (one-to-many) relationship**, where:
@@ -30,6 +28,19 @@ There are two tables: **User** and **Game**. These tables have a **1:M (one-to-m
 * One user can have multiple games.
 * Each game is associated with one user.
 * Users and games are linked using a `user_id` attribute, allowing games to be associated with their respective users.
+
+## Routes
+
+* Root (`/`): This displays login status
+    * Profile (`/get_user_info/user_id`): This allows users to `GET` their id and username.
+    * Login (`/login`): This allows users to `POST` login details and login to their accounts.
+    * Logout (`/logout`): This allows users to `POST` a request to logout of their accounts.
+    * Create Account (`/create-account`): This allows users to `POST` a username and password for a new account.
+    * List Reviews (`/games`): This allows users to `GET` their collection of game reviews.
+        * Get Specific Review (`/games/game_id`): This allows users to `GET` a specific review.
+            * Update Specific Review (`/games/game_id/update`): This allows users to `PUT` different values into an existing review.
+            * Delete Specific Review (`/games/game_id/delete`): This allows users to `DELETE` a specific review.
+    * Create Review (`/create-game`): This allows users to `POST` specifics of a new review to add to their collection.
 
 ## Security & Authentication
 
